@@ -13,15 +13,23 @@ def linear(x):
 def linear_derivative(x):
     return np.ones_like(x)
 
+def cosine(x):
+    return np.cos(x)
+
+def cosine_derivative(x):
+    return - np.sin(x)
+
 
 FUNCTIONS = {
     "sigmoid": sigmoid,
     "linear": linear,
+    "cosine": cosine,
 }
 
 DERIVATIVES = {
     "sigmoid": sigmoid_derivative,
     "linear": linear_derivative,
+    "cosine": cosine_derivative,
 }
 
 
