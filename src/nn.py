@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 
 def sigmoid(x):
@@ -87,5 +88,17 @@ class NN:
             total_loss = 0.0
             for x, y in zip(X, Y):
                 total_loss += self.backward(x, y, learning_rate)
+
+
+    def save(self, filename):
+        with open(filename, "wb") as file:
+            pickle.dump(self, file)
+
+
+    @staticmethod
+    def load(filename):
+        with open(filename, "rb") as file:
+            return pickle.load(file)
+
 
 

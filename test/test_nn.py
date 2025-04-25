@@ -21,3 +21,14 @@ def test_xor():
     assert y[2] == eval(2)
     assert y[3] == eval(3)
     
+
+def test_pickle():
+    l1 = Layer(2, 3, activation_function="sigmoid")
+    l2 = Layer(3, 1, activation_function="linear")
+    n1 = NN([l1, l2])
+
+    n1.save("prueba.pickle")
+    n2 = NN.load("prueba.pickle")
+
+    assert (n1.layers[0].w == n2.layers[0].w).all
+    assert (n1.layers[0].b == n2.layers[0].b).all
