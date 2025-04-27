@@ -98,9 +98,9 @@ class RMSprop(Optimizer):
 
 
 class Adam(Optimizer):
-    learning_rate = 0.01
-    alpha = 0.9
-    beta = 0.999
+    learning_rate = 0.001
+    beta1 = 0.9
+    beta2 = 0.999
     epsilon = 1e-8
 
     def update(self, layer, dw, db):
@@ -113,20 +113,20 @@ class Adam(Optimizer):
         velocity_w = layer.__dict__.get("velocity_w", 0)
         velocity_b = layer.__dict__.get("velocity_b", 0)
 
-        layer.momentum_w = self.beta * momentum_w + (1 - self.beta) * dw
-        layer.momentum_b = self.beta * momentum_b + (1 - self.beta) * db
+        layer.momentum_w = self.beta1 * momentum_w + (1 - self.beta1) * dw
+        layer.momentum_b = self.beta1 * momentum_b + (1 - self.beta1) * db
 
-        layer.velocity_w = self.alpha * velocity_w + (1 - self.alpha) * dw**2
-        layer.velocity_b = self.alpha * velocity_b + (1 - self.alpha) * db**2
+        layer.velocity_w = self.beta2 * velocity_w + (1 - self.beta2) * dw**2
+        layer.velocity_b = self.beta2 * velocity_b + (1 - self.beta2) * db**2
        
-        momentum_w_hat = layer.momentum_w / (1 - self.beta**(t))
-        momentum_b_hat = layer.momentum_b / (1 - self.beta**(t))
+        momentum_w_hat = layer.momentum_w / (1 - self.beta1**(t))
+        momentum_b_hat = layer.momentum_b / (1 - self.beta1**(t))
 
-        velocity_w_hat = layer.velocity_w / (1 - self.alpha**(t))
-        velocity_b_hat = layer.velocity_b / (1 - self.alpha**(t))
+        velocity_w_hat = layer.velocity_w / (1 - self.beta2**(t))
+        velocity_b_hat = layer.velocity_b / (1 - self.beta2**(t))
 
-        layer.w -= self.learning_rate  * momentum_w_hat / (np.sqrt(velocity_w_hat) + self.epsilon)
-        layer.b -= self.learning_rate  * momentum_b_hat / (np.sqrt(velocity_b_hat) + self.epsilon)
+        layer.w -= self.learning_rate * momentum_w_hat / (np.sqrt(velocity_w_hat) + self.epsilon)
+        layer.b -= self.learning_rate * momentum_b_hat / (np.sqrt(velocity_b_hat) + self.epsilon)
 
         # https://www.youtube.com/watch?v=NE88eqLngkg
 
@@ -182,7 +182,7 @@ class NN:
     
     def train(self, X, Y, epochs=1000, batch_size=1):
         n_samples = len(X)
-        history = {'epoch': [], 'loss': []}
+        history = {'epoch': [], 'loss': [], 'total_loss': []}
 
         for epoch in range(epochs):
             total_loss = 0.0
@@ -219,10 +219,13 @@ class NN:
 
             total_loss += batch_loss
         
-        avg_loss = total_loss / n_samples
-        
-        history['epoch'].append(epoch + 1)
-        history['loss'].append(avg_loss)
+            avg_loss = total_loss / n_samples
+            history['epoch'].append(epoch + 1)
+            history['loss'].append(avg_loss)
+            history['total_loss'].append(total_loss)
+
+
+        return history
         
 
     def save(self, filename):
