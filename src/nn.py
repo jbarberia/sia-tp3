@@ -83,7 +83,7 @@ class AdaGrad(Optimizer):
 
 class RMSprop(Optimizer):
     learning_rate = 0.01
-    decay_rate = 0.9
+    decay_rate = 0.99
     epsilon = 1e-8
 
     def update(self, layer, dw, db):
@@ -184,13 +184,17 @@ class NN:
         n_samples = len(X)
         history = {'epoch': [], 'loss': [], 'total_loss': []}
 
+
         for epoch in range(epochs):
             total_loss = 0.0
             indices = np.arange(n_samples)
             np.random.shuffle(indices)
 
             for start_idx in range(0, n_samples, batch_size):
-                batch_indices = indices[start_idx:start_idx + batch_size]
+            
+                
+                batch_indices = indices[start_idx:start_idx + batch_size].tolist()
+                
                 batch_X = X[batch_indices]
                 batch_Y = Y[batch_indices]             
             
