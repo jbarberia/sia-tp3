@@ -171,6 +171,10 @@ class NN:
             x = layer.forward(x)
         return x
     
+    def predict(self, x):
+        results = [self.forward(xi) for xi in x]
+        return np.array(results)
+    
     def backward(self, x, y):        
         prediction = self.forward(x)
         grad = prediction - y
@@ -228,9 +232,10 @@ class NN:
             history['loss'].append(avg_loss)
             history['total_loss'].append(total_loss)
 
-
         return history
-        
+
+
+
 
     def save(self, filename):
         with open(filename, "wb") as file:
