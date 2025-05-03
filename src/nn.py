@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import pickle
 import numpy as np
+import pandas as pd
+from time import time
 
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
@@ -128,10 +130,6 @@ class Adam(Optimizer):
         layer.w -= self.learning_rate * momentum_w_hat / (np.sqrt(velocity_w_hat) + self.epsilon)
         layer.b -= self.learning_rate * momentum_b_hat / (np.sqrt(velocity_b_hat) + self.epsilon)
 
-        # https://www.youtube.com/watch?v=NE88eqLngkg
-
-
-
 
 # ------------------------------------------------------------------------------
 class Layer:
@@ -165,6 +163,7 @@ class NN:
     def __init__(self, layers, optimizer=None):
         self.layers = layers
         self.optimizer = optimizer if optimizer else SGD()
+        self.idx2class = None
         
     def forward(self, x):
         for layer in self.layers:
@@ -180,27 +179,24 @@ class NN:
             
         return 0.5 * np.sum((prediction - y) ** 2)
     
-    def train(self, X, Y, epochs=1000, batch_size=1):
-        n_samples = len(X)
-        history = {'epoch': [], 'loss': [], 'total_loss': []}
-
+    def train(self, x_train, y_train, x_val=None, y_val=None, epochs=1000, batch_size=1):
+        n_samples = len(x_train)
+        history = []
 
         for epoch in range(epochs):
+            t0 = time()
             total_loss = 0.0
             indices = np.arange(n_samples)
             np.random.shuffle(indices)
 
             for start_idx in range(0, n_samples, batch_size):
-            
-                
                 batch_indices = indices[start_idx:start_idx + batch_size].tolist()
                 
-                batch_X = X[batch_indices]
-                batch_Y = Y[batch_indices]             
+                batch_X = x_train[batch_indices]
+                batch_Y = y_train[batch_indices]             
             
                 grads_dw = [np.zeros_like(layer.w) for layer in self.layers]
                 grads_db = [np.zeros_like(layer.b) for layer in self.layers]
-
 
                 batch_loss = 0.0
                 for x, y in zip(batch_X, batch_Y):
@@ -222,15 +218,73 @@ class NN:
                         self.optimizer.update(layer, dw_sum / batch_size, db_sum / batch_size)
 
             total_loss += batch_loss
-        
-            avg_loss = total_loss / n_samples
-            history['epoch'].append(epoch + 1)
-            history['loss'].append(avg_loss)
-            history['total_loss'].append(total_loss)
+            t1 = time()
+            
+            # validacion
+            val_loss = 0.5 * sum((self.forward(xi) - yi)**2 for xi, yi in zip(x_val, y_val))
+
+            y_true = [self.one_hot_decoding(yi) for yi in y_val]
+            y_pred = self.predict(x_val)
+            metricas = self.get_metrics(y_true, y_pred)
+            
+            metricas["EPOCH_TIME"] = t1 - t0
+            metricas["EPOCH"] = epoch
+            metricas["TOTAL_LOSS"] = val_loss
+            metricas["INSTANCIA"] = "VALIDACION"
+            history.append(metricas)
+
+        return pd.concat(history)
+    
+
+    def predict(self, x):
+        pred = []
+        for xi in x:
+            forw = self.forward(xi)
+            indx = np.argmax(forw)
+            if hasattr(self, "idx2class"):
+                pred.append(self.idx2class[indx])
+            else:
+                pred.append(indx)
+        return pred
 
 
-        return history
+    def get_metrics(self, y_true, y_pred, classes=None):
+        if hasattr(self, "idx2class"):
+            classes = self.idx2class.values()
+        else:
+            classes = set(y_true) | set(y_pred)
+
+        metrics = {c: {'N':0, 'TP': 0, 'FP': 0, 'FN': 0, 'TN': 0} for c in classes}
+        for true, pred in zip(y_true, y_pred):
+            for c in metrics:
+                if true == c:
+                    metrics[c]['N'] += 1
+                if true == c and pred == c:
+                    metrics[c]['TP'] += 1
+                elif true != c and pred == c:
+                    metrics[c]['FP'] += 1
+                elif true == c and pred != c:
+                    metrics[c]['FN'] += 1
+                elif true != c and pred != c:
+                    metrics[c]['TN'] += 1
+
+        df = pd.DataFrame(metrics).T
+        df["ACCURACY"]  = (df.TP + df.TN) / (df.TP + df.TN + df.FP + df.FN)
+        df["PRECISION"] = df.TP / (df.TP + df.FP)
+        df["RECALL"]    = df.TP / (df.TP + df.FN)
+        df["F1_SCORE"]  = 2 * df.TP / (2 * df.TP + df.FP + df.FN)
+        df.index.name = "CLASE"
+        df = df.reset_index()
         
+        return df
+
+
+    def one_hot_decoding(self, x):
+        if hasattr(self, "idx2class"):
+            return self.idx2class[np.argmax(x)]
+        else:
+            return np.argmax(x)
+
 
     def save(self, filename):
         with open(filename, "wb") as file:
