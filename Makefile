@@ -10,3 +10,6 @@ clean:
 	@rm -rf */*.pyc
 	@rm -f *.png
 	@rm -f *.jpg
+
+reset_out:
+	@rm out/*
