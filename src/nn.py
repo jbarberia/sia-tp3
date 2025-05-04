@@ -69,7 +69,7 @@ class Momentum(Optimizer):
 
 
 class AdaGrad(Optimizer):
-    learning_rate = 0.1
+    learning_rate = 0.01
     epsilon = 1e-8
 
     def update(self, layer, dw, db):

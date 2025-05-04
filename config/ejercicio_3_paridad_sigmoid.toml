@@ -1,0 +1,33 @@
+# Configuración inicial para el ejercicio 4
+corridas = 5
+
+[data]
+x = "data/paridad_x.txt"
+y = "data/paridad_y.txt"
+perc_train = 0.7
+perc_test = 0.2
+
+[architecture]
+layers=[
+    {activation_function="sigmoid", dims_in=1, dims_out=10},
+    {activation_function="sigmoid", dims_in=10, dims_out=10},
+    {activation_function="sigmoid", dims_in=10, dims_out=2},
+]
+
+w_distribution = "normal"
+w_loc   = 1.0
+w_scale = 0.1
+
+b_distribution = "uniform"
+b_low   = 0.0
+b_high  = 10.0
+
+[optimizer]
+name = "Adam"
+
+[train]
+epochs = 200
+batch_size = 10
+
+[output]
+folder = "out/ejercicio_3_paridad_sigmoid"
