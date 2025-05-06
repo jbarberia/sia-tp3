@@ -30,6 +30,7 @@ def test_ej3():
 
     optimizer = SGD()
     nn = NN([l1, l2], optimizer)
+
     results = nn.train(x, y)
 
     

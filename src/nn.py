@@ -219,19 +219,28 @@ class NN:
 
             total_loss += batch_loss
             t1 = time()
+
+            train_loss = 0.5 * sum((self.forward(xi) - yi)**2 for xi, yi in zip(x_train, y_train))
+            
+            y_true = [self.one_hot_decoding(yi) for yi in y_train]
+            y_pred = self.predict(x_train)
+            metricas = self.get_metrics(y_true, y_pred)
+            metricas["TOTAL_LOSS"] = train_loss
+            metricas["INSTANCIA"] = "ENTRENAMIENTO"
+            metricas["EPOCH"] = epoch
+            metricas["EPOCH_TIME"] = t1 - t0
+            history.append(metricas)
             
             # validacion
-            val_loss = 0.5 * sum((self.forward(xi) - yi)**2 for xi, yi in zip(x_val, y_val))
+            if x_val:
+                val_loss = 0.5 * sum((self.forward(xi) - yi)**2 for xi, yi in zip(x_val, y_val))
 
-            y_true = [self.one_hot_decoding(yi) for yi in y_val]
-            y_pred = self.predict(x_val)
-            metricas = self.get_metrics(y_true, y_pred)
-            
-            metricas["EPOCH_TIME"] = t1 - t0
-            metricas["EPOCH"] = epoch
-            metricas["TOTAL_LOSS"] = val_loss
-            metricas["INSTANCIA"] = "VALIDACION"
-            history.append(metricas)
+                y_true = [self.one_hot_decoding(yi) for yi in y_val]
+                y_pred = self.predict(x_val)
+                metricas = self.get_metrics(y_true, y_pred)    
+                metricas["TOTAL_LOSS"] = val_loss
+                metricas["INSTANCIA"] = "VALIDACION"
+                history.append(metricas)
 
         return pd.concat(history)
     
@@ -241,7 +250,7 @@ class NN:
         for xi in x:
             forw = self.forward(xi)
             indx = np.argmax(forw)
-            if hasattr(self, "idx2class"):
+            if self.idx2class:
                 pred.append(self.idx2class[indx])
             else:
                 pred.append(indx)
@@ -249,7 +258,7 @@ class NN:
 
 
     def get_metrics(self, y_true, y_pred, classes=None):
-        if hasattr(self, "idx2class"):
+        if self.idx2class:
             classes = self.idx2class.values()
         else:
             classes = set(y_true) | set(y_pred)
@@ -280,7 +289,7 @@ class NN:
 
 
     def one_hot_decoding(self, x):
-        if hasattr(self, "idx2class"):
+        if self.idx2class:
             return self.idx2class[np.argmax(x)]
         else:
             return np.argmax(x)
@@ -297,4 +306,14 @@ class NN:
             return pickle.load(file)
 
 
+    def one_hot_encoding(self, y):
+        val2idx = {val: i for i, val in enumerate(np.unique(y))}
+        idx2val = {i: val for i, val in enumerate(np.unique(y))}
+        dims = y.shape[0], len(val2idx)
+        output = np.zeros(dims)
 
+        for i, y_i in enumerate(y):
+            output[i, val2idx[y_i]] = 1
+        
+        self.idx2class = idx2val
+        return idx2val, output
