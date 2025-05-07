@@ -179,71 +179,93 @@ class NN:
             
         return 0.5 * np.sum((prediction - y) ** 2)
     
-    def train(self, x_train, y_train, x_val=None, y_val=None, epochs=1000, batch_size=1):
-        n_samples = len(x_train)
+    def train(self, x_train, y_train, x_val=None, y_val=None, epochs=1000, batch_size=1, k_fold=None):
+        if k_fold:
+            X = np.array(x_train.to_list() + x_val.to_list())
+            Y = np.array(y_train.to_list() + y_val.to_list())
+            indices = [[i for i in range(X.shape[0])] for k in range(k_fold)]
+    
         history = []
-
         for epoch in range(epochs):
             t0 = time()
-            total_loss = 0.0
-            indices = np.arange(n_samples)
-            np.random.shuffle(indices)
-
-            for start_idx in range(0, n_samples, batch_size):
-                batch_indices = indices[start_idx:start_idx + batch_size].tolist()
-                
-                batch_X = x_train[batch_indices]
-                batch_Y = y_train[batch_indices]             
-            
-                grads_dw = [np.zeros_like(layer.w) for layer in self.layers]
-                grads_db = [np.zeros_like(layer.b) for layer in self.layers]
-
-                batch_loss = 0.0
-                for x, y in zip(batch_X, batch_Y):
-                    prediction = self.forward(x)
-                    grad = prediction - y
-                    
-                    batch_loss += 0.5 * np.sum((prediction - y) ** 2)
-
-                    local_grads = []
-                    for layer in reversed(self.layers):
-                        grad, dw, db = layer.backward(grad)
-                        local_grads.append((dw, db))
-
-                    for idx, (dw, db) in enumerate(reversed(local_grads)):
-                        grads_dw[idx] += dw
-                        grads_db[idx] += db
-
-                    for layer, dw_sum, db_sum in zip(self.layers, grads_dw, grads_db):
-                        self.optimizer.update(layer, dw_sum / batch_size, db_sum / batch_size)
-
-            total_loss += batch_loss
+            if k_fold:
+                idx_val = indices[epoch % k_fold]
+                idx_train = sum(indices for i in range(k_fold) if i != epoch % k_fold)
+        
+                x_train = X[idx_train]
+                y_train = Y[idx_train]
+                x_val = X[idx_val]
+                y_val = Y[idx_val]
+        
+                self._train_model(x_train, y_train, batch_size)
+            else:
+                self._train_model(x_train, y_train, batch_size)
             t1 = time()
 
-            train_loss = 0.5 * sum((self.forward(xi) - yi)**2 for xi, yi in zip(x_train, y_train))
-            
-            y_true = [self.one_hot_decoding(yi) for yi in y_train]
-            y_pred = self.predict(x_train)
-            metricas = self.get_metrics(y_true, y_pred)
-            metricas["TOTAL_LOSS"] = train_loss
-            metricas["INSTANCIA"] = "ENTRENAMIENTO"
-            metricas["EPOCH"] = epoch
-            metricas["EPOCH_TIME"] = t1 - t0
+            # metricas de entrenamiento
+            metricas = self._obtener_metricas(x_train, y_train, "ENTRENAMIENTO", epoch, t1 - t0)
             history.append(metricas)
             
-            # validacion
-            if x_val:
-                val_loss = 0.5 * sum((self.forward(xi) - yi)**2 for xi, yi in zip(x_val, y_val))
-
-                y_true = [self.one_hot_decoding(yi) for yi in y_val]
-                y_pred = self.predict(x_val)
-                metricas = self.get_metrics(y_true, y_pred)    
-                metricas["TOTAL_LOSS"] = val_loss
-                metricas["INSTANCIA"] = "VALIDACION"
+            # metricas de validacion
+            if not x_val is None:
+                metricas = self._obtener_metricas(x_val, y_val, "VALIDACION", epoch)                
                 history.append(metricas)
 
         return pd.concat(history)
     
+
+    def _train_model(self, X, Y, batch_size):
+        n_samples = len(X)
+        indices = np.arange(n_samples)
+        np.random.shuffle(indices)
+
+        for start_idx in range(batch_size):
+            batch_indices = np.random.choice(indices, len(indices) // batch_size).tolist()
+
+            batch_X = X[batch_indices]
+            batch_Y = Y[batch_indices]
+        
+            grads_dw = [np.zeros_like(layer.w) for layer in self.layers]
+            grads_db = [np.zeros_like(layer.b) for layer in self.layers]
+
+            # 1 - Forward pass
+            batch_loss = 0.0
+            for x, y in zip(batch_X, batch_Y):
+                prediction = self.forward(x)
+                grad = prediction - y
+                
+                batch_loss += 0.5 * np.sum((prediction - y) ** 2)
+
+                # 2 - Calculate weights and bias grad
+                local_grads = []
+                for layer in reversed(self.layers):
+                    grad, dw, db = layer.backward(grad)
+                    local_grads.append((dw, db))
+
+                for idx, (dw, db) in enumerate(reversed(local_grads)):
+                    grads_dw[idx] += dw
+                    grads_db[idx] += db
+            
+            # 3 - Backward pass
+            for layer, dw_sum, db_sum in zip(self.layers, grads_dw, grads_db):
+                self.optimizer.update(layer, dw_sum / batch_size, db_sum / batch_size)
+
+
+    def _obtener_metricas(self, x, y, instancia, epoch, epoch_time=None):
+        train_loss = self._loss(x, y)
+        y_true = [self.one_hot_decoding(yi) for yi in y]
+        y_pred = self.predict(x)
+        metricas = self.get_metrics(y_true, y_pred)
+        metricas["TOTAL_LOSS"] = train_loss
+        metricas["INSTANCIA"] = instancia
+        metricas["EPOCH"] = epoch
+        metricas["EPOCH_TIME"] = epoch_time
+        return metricas
+
+
+    def _loss(self, x, y):
+        return 0.5 * sum((self.forward(xi) - yi)**2 for xi, yi in zip(x, y)) / len(x)
+
 
     def predict(self, x):
         pred = []
