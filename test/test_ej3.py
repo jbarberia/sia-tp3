@@ -1,10 +1,8 @@
-
-
-
 import numpy as np
 import pandas as pd
 
-from src.nn import NN, SGD, Layer
+from src.perceptron_multicapa import PerceptronMulticapa, Layer
+from src.optimizer import SGD, Adam
 
 
 def dataset_ej3():
@@ -16,28 +14,67 @@ def dataset_ej3():
     numero = 0
     for i in range(0, data.shape[0], 7):
         x.append(data[i:i+7].reshape(-1))
-        out = np.zeros(10)
-        out[numero] = 1
-        y.append(out)
+        y.append(numero)
         numero += 1
     return np.array(x), np.array(y)
 
 
-def test_ej3():
-    x, y = dataset_ej3()
+def test_ej3_digitos():
+    optimizer = Adam()
     l1 = Layer(35, 10, activation_function="sigmoid")
     l2 = Layer(10, 10, activation_function="sigmoid")
-
-    optimizer = SGD()
-    nn = NN([l1, l2], optimizer)
-
-    results = nn.train(x, y)
-
+    nn = PerceptronMulticapa([l1, l2], optimizer)
     
-    acierto = 0
-    for (xi, yi) in zip(x, y):
-        y_hat = np.argmax(nn.forward(xi))
-        yi = np.argmax(yi)
+    x, y = dataset_ej3()
+    y_enc = nn.one_hot_encoding(y)
+    
+    nn.train(x, y_enc, epochs=1000)
 
-        if y_hat == yi:
-            acierto += 1
+    prediccion = nn.predict(x)
+    assert (y == prediccion).all()
+    
+
+def test_ej3_paridad():
+    optimizer = Adam()
+    l1 = Layer(35, 10, activation_function="sigmoid")
+    l2 = Layer(10, 2, activation_function="sigmoid")
+    nn = PerceptronMulticapa([l1, l2], optimizer)
+    
+    x, y = dataset_ej3()
+    y = y % 2
+    y_enc = nn.one_hot_encoding(y)
+    
+    nn.train(x, y_enc, epochs=1000)
+
+    prediccion = nn.predict(x)
+    assert (y == prediccion).all()
+
+
+def test_ej3_minimo():
+    optimizer = Adam()
+    l1 = Layer(35, 2, activation_function="linear")
+    nn = PerceptronMulticapa([l1], optimizer)
+    
+    x, y = dataset_ej3()
+    y = y % 2
+    y_enc = nn.one_hot_encoding(y)
+    
+    nn.train(x, y_enc, epochs=1000)
+
+    prediccion = nn.predict(x)
+    assert (y == prediccion).all()
+
+
+def test_ej3_kfold():
+    optimizer = Adam()
+    l1 = Layer(35, 2, activation_function="linear")
+    nn = PerceptronMulticapa([l1], optimizer)
+    
+    x, y = dataset_ej3()
+    y = y % 2
+    y_enc = nn.one_hot_encoding(y)
+    
+    nn.train(x, y_enc, epochs=1000, k_fold=3)
+
+    prediccion = nn.predict(x)
+    assert (y == prediccion).all()

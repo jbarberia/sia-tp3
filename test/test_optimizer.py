@@ -1,5 +1,6 @@
 import numpy as np
-from src.nn import NN, AdaGrad, Adam, Layer, Momentum, RMSprop
+from src.perceptron_multicapa import PerceptronMulticapa, Layer
+from src.optimizer import AdaGrad, Adam, Momentum, RMSprop
 
 
 def one_hot_encoding(y):
@@ -19,10 +20,8 @@ def eval_xor(nn):
     x = np.array([[-1, 1], [1, -1], [-1, -1], [1, 1]])
     y = np.array([1, 1, -1, -1])
 
-    idx2class, y_enc = one_hot_encoding(y)
-
-    nn.idx2class = idx2class
-    nn.train(x, y_enc, epochs=500)
+    y_enc = nn.one_hot_encoding(y)
+    nn.train(x, y_enc, epochs=5000)
 
     # Extrae los datos como numero entero del predictor
     eval = nn.predict(x)
@@ -37,15 +36,16 @@ def test_with_momentum():
     l1 = Layer(2, 3, activation_function="sigmoid")
     l2 = Layer(3, 2, activation_function="linear")
     optimizer = Momentum()
-    nn = NN([l1, l2], optimizer)
+    nn = PerceptronMulticapa([l1, l2], optimizer)
     eval_xor(nn)
 
 
-def _test_with_adagrad(): # Este no lo vimos en clase
+def test_with_adagrad(): # Este no lo vimos en clase
     l1 = Layer(2, 3, activation_function="sigmoid")
     l2 = Layer(3, 2, activation_function="linear")
     optimizer = AdaGrad()
-    nn = NN([l1, l2], optimizer)
+    optimizer.learning_rate = 0.5
+    nn = PerceptronMulticapa([l1, l2], optimizer)
     eval_xor(nn)
 
 
@@ -53,7 +53,7 @@ def test_with_rms_prop():
     l1 = Layer(2, 3, activation_function="sigmoid")
     l2 = Layer(3, 2, activation_function="linear")
     optimizer = RMSprop()
-    nn = NN([l1, l2], optimizer)
+    nn = PerceptronMulticapa([l1, l2], optimizer)
     eval_xor(nn)
 
 
@@ -62,5 +62,5 @@ def test_with_adam():
     l2 = Layer(3, 2, activation_function="linear")
     optimizer = Adam()
     optimizer.learning_rate = 0.1
-    nn = NN([l1, l2], optimizer)
+    nn = PerceptronMulticapa([l1, l2], optimizer)
     eval_xor(nn)
