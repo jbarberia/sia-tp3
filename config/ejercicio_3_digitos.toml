@@ -1,0 +1,31 @@
+corridas = 1
+
+[data]
+x = "data/digitos.txt"
+y = "data/digitos_valor.txt"
+perc_train = 1.0
+perc_test = 0.0
+
+[architecture]
+layers=[
+    {activation_function="sigmoid", dims_in=35, dims_out=35},
+    {activation_function="sigmoid", dims_in=35, dims_out=10},
+]
+
+w_distribution = "normal"
+w_loc   = 0.0
+w_scale = 0.1
+
+b_distribution = "uniform"
+b_low   = 0.0
+b_high  = 1.0
+
+[optimizer]
+name = "Adam"
+
+[train]
+epochs = 2000
+batch_size = 10
+
+[output]
+folder = "out/ejercicio_3_digitos"
