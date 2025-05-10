@@ -1,12 +1,13 @@
 import os
+import pickle
 import sys
 import json
 import tomli
 import numpy as np
 import pandas as pd
 
-from src.nn import NN, Layer
-from src.nn import AdaGrad, Adam, SGD, Momentum, RMSprop
+from src.perceptron_multicapa import PerceptronMulticapa, Layer
+from src.perceptron_multicapa import AdaGrad, Adam, SGD, Momentum, RMSprop
 
 
 
@@ -57,7 +58,7 @@ def create_nn(config):
         layers.append(l)
 
     # ensamblo red
-    nn = NN(layers, optimizer)
+    nn = PerceptronMulticapa(layers, optimizer)
     return nn
 
 
@@ -115,18 +116,29 @@ def main(config):
     # entrena red
     train_options = config["train"]
     train_results = nn.train(x_train, y_train, x_val, y_val, **train_options)
-
+    
     # obtiene predicciones con datos nuevos
     y_true = [nn.one_hot_decoding(yi) for yi in y_test]
+    y_hat = nn.batch_forward(x_test)
     y_pred = nn.predict(x_test)
 
     # genera metricas    
-    metricas = nn.get_metrics(y_true, y_pred)
-    metricas["INSTANCIA"] = "TEST"
+    test_results = {
+        "x": x_test.tolist(),
+        "y": y_test.tolist(),
+        "y_hat": y_hat.tolist(), 
+        "y_class": y_true,
+        "prediction": y_pred,
+    }
+    
+    return nn, train_results, test_results
 
-    # devuelve resultados
-    results = pd.concat((train_results, metricas))
-    return nn, results
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 
 
 if __name__ == "__main__":
@@ -135,12 +147,19 @@ if __name__ == "__main__":
 
     for i in range(config["corridas"]):
         print("corrida {}".format(i))
-        nn, results = main(config)
+        nn, train_results, test_results = main(config)
         
+        # output
         path = config["output"]["folder"]
         if not os.path.exists(path):
             os.mkdir(path)
-        
-        
-        results.to_csv(os.path.join(path, "corrida_{}.csv".format(i)), index=False)
-        nn.save(os.path.join(path, "corrida_{}.pickle".format(i))) 
+                
+        ofile_train = os.path.join(path, "training_{}.pickle".format(i))
+        with open(ofile_train, "wb") as file:
+            pickle.dump(train_results, file)
+
+        ofile_test = os.path.join(path, "test_{}.pickle".format(i))
+        with open(ofile_test, "wb") as file:
+            pickle.dump(test_results, file)
+
+        nn.save(os.path.join(path, "modelo_{}.pickle".format(i))) 
